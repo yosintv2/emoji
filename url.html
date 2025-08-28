@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting...</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5525538810839147" crossorigin="anonymous"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#10B981',
+            accent: '#8B5CF6',
+            dark: '#1F2937',
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    // Base36 decoding (0-9, a-z)
+    const base36Chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    function base36Decode(encoded) {
+      let num = 0n;
+      for (let c of encoded) {
+        num = num * 36n + BigInt(base36Chars.indexOf(c));
+      }
+      let hex = num.toString(16);
+      if (hex.length % 2) hex = "0" + hex;
+      let result = "";
+      for (let i = 0; i < hex.length; i += 2) {
+        result += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+      }
+      return result;
+    }
+
+    function startCountdown(seconds, redirectUrl) {
+      let counter = seconds;
+      const countdownElement = document.getElementById('countdown');
+      const progressBar = document.getElementById('progress-bar');
+      
+      countdownElement.textContent = counter;
+      
+      const countdownInterval = setInterval(() => {
+        counter--;
+        countdownElement.textContent = counter;
+        
+        const progressPercent = ((seconds - counter) / seconds) * 100;
+        progressBar.style.width = `${progressPercent}%`;
+        
+        if (counter <= 0) {
+          clearInterval(countdownInterval);
+          window.location.href = redirectUrl;
+        }
+      }, 1000);
+      
+      document.getElementById('skipButton').addEventListener('click', () => {
+        clearInterval(countdownInterval);
+        window.location.href = redirectUrl;
+      });
+
+      document.getElementById('cancelButton').addEventListener('click', () => {
+        clearInterval(countdownInterval);
+        window.location.href = '/index.html';
+      });
+    }
+
+    window.onload = function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("u")) {
+        const decodedId = base36Decode(params.get("u"));
+        if (decodedId) {
+          const tinyUrl = "https://tinyurl.com/" + decodedId;
+          startCountdown(10, tinyUrl);
+          // Initialize AdSense
+          (adsbygoogle = window.adsbygoogle || []).push({});
+        } else {
+          showInvalidUrl();
+        }
+      } else {
+        showInvalidUrl();
+      }
+    }
+
+    function showInvalidUrl() {
+      document.body.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md w-full mx-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 text-5xl mb-4" aria-hidden="true"></i>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Invalid URL</h2>
+            <p class="text-gray-600 mb-6">The shortened URL is invalid or may have expired.</p>
+            <a href="/index.html" class="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors" aria-label="Return to URL shortener">
+              Back to Shortener
+            </a>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .progress-bar {
+      transition: width 1s linear;
+    }
+    .ad-container {
+      transition: all 0.3s ease;
+    }
+    .ad-container:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+  <div class="text-center bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <i class="fas fa-external-link-alt text-blue-500 text-2xl" aria-hidden="true"></i>
+    </div>
+    <h2 class="text-xl font-semibold text-gray-800 mb-2">Redirecting to Your Destination</h2>
+    <p class="text-gray-600 mb-6">Please wait while we take you to your link...</p>
+    
+    <!-- Countdown Timer -->
+    <div class="mb-6">
+      <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+        <div id="progress-bar" class="h-full bg-blue-500 progress-bar" style="width: 0%"></div>
+      </div>
+      <p class="text-sm text-gray-600">Redirecting in <span id="countdown" class="font-bold">10</span> seconds</p>
+    </div>
+    
+    <div class="flex justify-center gap-4 mb-8">
+      <button id="skipButton" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors" aria-label="Skip waiting and redirect now">
+        Skip Waiting
+      </button>
+      <button id="cancelButton" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors" aria-label="Cancel and return to shortener">
+        Cancel
+      </button>
+    </div>
+    
+    <!-- Ad Slot -->
+    <div class="ad-container p-4 bg-gray-100 rounded-lg">
+      <p class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Advertisement</p>
+      <ins class="adsbygoogle"
+           style="display:block"
+           data-ad-client="ca-pub-5525538810839147"
+           data-ad-slot="9765483765"
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+    </div>
+  </div>
+</body>
+</html>
