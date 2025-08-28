@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom URL Shortener</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#10B981',
+            accent: '#8B5CF6',
+            dark: '#1F2937',
+          }
+        }
+      }
+    }
+  </script>
+  <script>
+    // Base36 encoding (0-9, a-z)
+    const base36Chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    function base36Encode(str) {
+      let num = BigInt("0x" + Array.from(str).map(c => c.charCodeAt(0).toString(16)).join(""));
+      let result = "";
+      while (num > 0) {
+        result = base36Chars[num % 36n] + result;
+        num = num / 36n;
+      }
+      return result;
+    }
+
+    async function shortenUrl() {
+      const inputUrl = document.getElementById("urlInput").value.trim();
+      if (!inputUrl) {
+        showAlert("Please enter a URL", "error");
+        return;
+      }
+      // Validate URL
+      if (!isValidUrl(inputUrl)) {
+        showAlert("Please enter a valid URL", "error");
+        return;
+      }
+
+      try {
+        // Show loading state
+        document.getElementById("shortenBtn").innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Shortening...';
+        document.getElementById("shortenBtn").disabled = true;
+
+        // TinyURL API call
+        const res = await fetch("https://tinyurl.com/api-create.php?url=" + encodeURIComponent(inputUrl));
+        const tinyUrl = await res.text();
+
+        if (!tinyUrl.startsWith("http")) {
+          showAlert("Error shortening with TinyURL", "error");
+          document.getElementById("shortenBtn").innerHTML = '<i class="fas fa-link mr-2"></i> Shorten URL';
+          document.getElementById("shortenBtn").disabled = false;
+          return;
+        }
+
+        // Extract TinyURL ID
+        const tinyId = tinyUrl.replace("https://tinyurl.com/", "");
+
+        // Encode the ID
+        const encoded = base36Encode(tinyId);
+
+        // Final shorter URL pointing to redirect.html
+        const finalUrl = window.location.origin + '/redirect.html?u=' + encoded;
+
+        document.getElementById("result").innerHTML = `
+          <div class="bg-gradient-to-r from-green-50 to-blue-50 border border-gray-200 rounded-xl p-6 mt-8 shadow-sm">
+            <h3 class="text-xl font-semibold text-gray-800 mb-2 flex items-center">
+              <i class="fas fa-link text-blue-500 mr-2"></i>Your Short URL
+            </h3>
+            <p class="text-gray-600 text-sm mb-4">Share this URL anywhere - it will redirect to your original content</p>
+            
+            <div class="mb-4">
+              <div class="flex items-center">
+                <input type="text" id="finalUrl" value="${finalUrl}" readonly class="flex-1 p-3 border border-gray-300 rounded-l-lg focus:outline-none bg-white font-mono text-sm" aria-label="Shortened URL">
+                <button onclick="copyToClipboard('finalUrl')" class="bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-r-lg transition-colors" aria-label="Copy URL to clipboard">
+                  <i class="fas fa-copy"></i>
+                </button>
+              </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+              <a href="${finalUrl}" target="_blank" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center" aria-label="Test shortened URL">
+                <i class="fas fa-external-link-alt mr-2"></i> Test URL
+              </a>
+              <button onclick="shareUrl('${finalUrl}')" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg flex items-center" aria-label="Share URL">
+                <i class="fas fa-share-alt mr-2"></i> Share
+              </button>
+              <a href="https://twitter.com/intent/tweet?text=Check%20this%20out&url=${encodeURIComponent(finalUrl)}" target="_blank" class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded-lg flex items-center" aria-label="Tweet URL">
+                <i class="fab fa-twitter mr-2"></i> Tweet
+              </a>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById("shortenBtn").innerHTML = '<i class="fas fa-link mr-2"></i> Shorten URL';
+        document.getElementById("shortenBtn").disabled = false;
+      } catch (e) {
+        showAlert("Error: " + e.message, "error");
+        document.getElementById("shortenBtn").innerHTML = '<i class="fas fa-link mr-2"></i> Shorten URL';
+        document.getElementById("shortenBtn").disabled = false;
+      }
+    }
+
+    async function copyToClipboard(elementId) {
+      const copyText = document.getElementById(elementId).value;
+      try {
+        await navigator.clipboard.writeText(copyText);
+        showAlert("URL copied to clipboard!", "success");
+      } catch (e) {
+        showAlert("Failed to copy URL", "error");
+      }
+    }
+
+    function shareUrl(url) {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Shortened URL',
+          text: 'Check out this shortened URL',
+          url: url
+        })
+        .catch(error => {
+          console.log('Error sharing:', error);
+        });
+      } else {
+        copyToClipboard('finalUrl');
+        showAlert("URL copied to clipboard. Share it anywhere!", "success");
+      }
+    }
+
+    function showAlert(message, type) {
+      const existingAlert = document.querySelector('.custom-alert');
+      if (existingAlert) {
+        existingAlert.remove();
+      }
+      
+      const alertDiv = document.createElement("div");
+      alertDiv.className = `custom-alert fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+        type === "error" ? "bg-red-100 border-l-4 border-red-500 text-red-700" : "bg-green-100 border-l-4 border-green-500 text-green-700"
+      }`;
+      alertDiv.setAttribute('role', 'alert');
+      alertDiv.innerHTML = `
+        <div class="flex items-center">
+          <i class="fas ${type === "error" ? "fa-exclamation-circle" : "fa-check-circle"} mr-2"></i>
+          <p>${message}</p>
+        </div>
+      `;
+      
+      document.body.appendChild(alertDiv);
+      
+      setTimeout(() => {
+        alertDiv.remove();
+      }, 3000);
+    }
+
+    function isValidUrl(string) {
+      try {
+        new URL(string);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .card {
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    #urlInput:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+    .custom-alert {
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .ad-container {
+      transition: all 0.3s ease;
+    }
+    .ad-container:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .ad-placeholder {
+      background: repeating-linear-gradient(
+        45deg,
+        #f8fafc,
+        #f8fafc 10px,
+        #f1f5f9 10px,
+        #f1f5f9 20px
+      );
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+  <div class="container mx-auto px-4 py-12">
+    <!-- Header -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mb-4">
+        <i class="fas fa-link text-2xl"></i>
+      </div>
+      <h1 class="text-4xl font-bold text-gray-800 mb-3">URL Shortener</h1>
+      <p class="text-gray-600 max-w-2xl mx-auto">Transform long URLs into short, manageable links using Base36 encoding for compact and reliable redirection.</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-2xl mx-auto">
+      <!-- Ad Slot 2 -->
+      <div class="ad-container mb-8 p-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl border border-blue-200">
+        <p class="text-xs text-blue-700 mb-2 uppercase tracking-wide font-semibold text-center">Sponsored</p>
+        <div class="ad-slot-2 bg-white p-4 rounded-lg border border-blue-200 flex items-center justify-center min-h-[120px] ad-placeholder">
+          <div class="text-center">
+            <div class="text-blue-500 text-2xl mb-2"><i class="fas fa-ad"></i></div>
+            <p class="text-gray-500 text-sm">Advertisement space</p>
+            <p class="text-gray-400 text-xs mt-1">Ad dimensions: 728x90px</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-xl shadow-lg overflow-hidden card">
+        <div class="p-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+        <div class="px-8 py-8">
+          <div class="mb-6">
+            <label for="urlInput" class="block text-sm font-medium text-gray-700 mb-2">Paste your long URL</label>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text" 
+                id="urlInput" 
+                placeholder="https://example.com/very-long-url" 
+                class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                aria-label="Enter URL to shorten"
+              >
+              <button 
+                id="shortenBtn"
+                onclick="shortenUrl()" 
+                class="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-300 shadow-md"
+                aria-label="Shorten URL"
+              >
+                <i class="fas fa-link mr-2"></i> Shorten URL
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <i class="fas fa-info-circle text-blue-500 text-lg mt-1"></i>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-800">How our URL shortener works</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                  <p class="flex items-center mb-1"><span class="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold mr-2">1</span> Your URL is shortened using TinyURL's service</p>
+                  <p class="flex items-center mb-1"><span class="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold mr-2">2</span> We apply Base36 encoding for additional compression</p>
+                  <p class="flex items-center"><span class="w-5 h-5 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold mr-2">3</span> You get a clean, short URL that redirects to your content</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Container -->
+      <div id="result" class="mt-6"></div>
+      
+      <!-- Ad Slot 3 -->
+      <div class="ad-container mt-8 p-4 bg-gradient-to-r from-green-100 to-blue-100 rounded-xl border border-green-200">
+        <p class="text-xs text-green-700 mb-2 uppercase tracking-wide font-semibold text-center">Sponsored</p>
+        <div class="ad-slot-3 bg-white p-4 rounded-lg border border-green-200 flex items-center justify-center min-h-[120px] ad-placeholder">
+          <div class="text-center">
+            <div class="text-green-500 text-2xl mb-2"><i class="fas fa-ad"></i></div>
+            <p class="text-gray-500 text-sm">Your advertisement here</p>
+            <p class="text-gray-400 text-xs mt-1">Ad dimensions: 300x250px</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Features Section -->
+    <section class="mt-16">
+      <h2 class="text-2xl font-bold text-center text-gray-800 mb-10">Benefits of Using Our URL Shortener</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="bg-white p-6 rounded-xl shadow-md card text-center">
+          <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 text-blue-600 mb-4">
+            <i class="fas fa-compress-arrows-alt text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Compact URLs</h3>
+          <p class="text-gray-600">Base36 encoding creates the shortest possible URLs for sharing anywhere.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-md card text-center">
+          <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-green-100 text-green-600 mb-4">
+            <i class="fas fa-lock text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Secure</h3>
+          <p class="text-gray-600">No tracking, no ads, and no personal data stored. Your privacy is respected.</p>
+        </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-md card text-center">
+          <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-purple-100 text-purple-600 mb-4">
+            <i class="fas fa-bolt text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Instant Redirect</h3>
+          <p class="text-gray-600">Fast redirection with no delays. Your users reach content immediately.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-16 text-center text-gray-600 text-sm">
+      <p>© 2023 URL Shortener. All rights reserved.</p>
+      <p class="mt-1 text-xs">Powered by Base36 encoding and TinyURL API</p>
+    </footer>
+  </div>
+</body>
+</html>
